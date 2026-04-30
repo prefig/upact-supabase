@@ -1,0 +1,32 @@
+{
+	"name": "@prefig/upact-supabase",
+	"version": "0.1.0-draft",
+	"description": "Supabase Auth adapter for upact — wraps Supabase's identity substrate behind the upact identity port, with privacy minima enforced at the adapter boundary.",
+	"license": "Apache-2.0",
+	"type": "module",
+	"main": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"keywords": [
+		"upact",
+		"identity-port",
+		"supabase",
+		"anti-corruption-layer",
+		"privacy-by-design",
+		"minimum-disclosure"
+	],
+	"author": "Theodore Evans (brave.berlin) and upact contributors",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/prefig/upact-supabase"
+	},
+	"peerDependencies": {
+		"@prefig/upact": "^0.1.0-draft",
+		"@supabase/supabase-js": "^2.0.0"
+	},
+	"devDependencies": {
+		"@types/node": "^20.0.0",
+		"typescript": "^5.0.0"
+	}
+}
