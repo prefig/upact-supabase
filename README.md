@@ -1,44 +1,55 @@
 # @prefig/upact-supabase
 
-> Supabase Auth adapter for [upact](https://github.com/prefig/upact) — wraps Supabase's identity substrate behind the upact identity port, with privacy minima enforced at the adapter boundary.
+A Supabase Auth adapter for the [upact](https://github.com/prefig/upact) identity port. Wraps Supabase's `User` shape behind upact's `UserIdentity` contract, with privacy minima enforced at the adapter boundary.
 
-**Status:** v0.1-draft. Implementation lifting from [`dyad.berlin`](https://dyad.berlin)'s `refactor/identity-service` branch in progress.
+## Install
 
-## What this is
+```sh
+# Pin to specific commit SHAs (recommended)
+npm install github:prefig/upact-supabase#<sha> github:prefig/upact#<sha>
+```
 
-Most apps that use Supabase for authentication end up with `auth.users.email`, `session.jwt.sub`, and substrate-shaped types leaking into their domain code. This package provides an **anti-corruption layer**: a `SupabaseUpactAdapter` that implements [upact's `IdentityPort`](https://github.com/prefig/upact/blob/main/SPEC.md), wraps Supabase's `User` shape, and exposes only what upact permits.
+Tags are mutable; SHAs are content-addressed. Pin to SHAs for supply-chain integrity. The `@prefig/upact` peer dependency is auto-installed with npm 7+.
 
-The adapter:
-
-- Returns `UserIdentity` with `id`, optional `display_hint`, `lifecycle: { issued_at, renewable: 'reauth' }`, and `capabilities: ReadonlySet<Capability>`
-- **Strips PII per upact §7** — no email, phone, IP, `app_metadata`, `user_metadata` beyond a display hint, JWT claims, `confirmed_at`, etc.
-- Exposes `email` and `recovery` capabilities (based on Supabase's substrate) so apps can branch on capability presence
-- Provides a separate `EmailChannel` export for capability-bound email delivery — never on the identity object
-
-## Usage (target shape — implementation pending)
+## Usage
 
 ```ts
 import { SupabaseUpactAdapter } from '@prefig/upact-supabase';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(URL, ANON_KEY);
+const supabase = createClient(URL, ANON_KEY); // request-bound for SSR
 const port = new SupabaseUpactAdapter(supabase);
 
 const identity = await port.currentIdentity(request);
 if (identity?.capabilities.has('email')) {
-    // route through EmailChannel — never reach into the substrate
+	// gate email-bound features
 }
 ```
 
-## License
+The adapter is per-request — instantiate it inside request handlers from a request-bound `SupabaseClient` (e.g. SvelteKit's `event.locals.supabase`), not as a module singleton. The `userToIdentity` and `capabilitiesFromUser` helpers are also exported as a sync convenience for consumers whose substrate populates a User synchronously and want to keep their own identity-derivation paths sync.
 
-Apache-2.0. Adapters are permissively licensed so proprietary and copyleft applications alike can adopt them.
+## Conformance statement
+
+Per upact §10:
+
+| Item | Value |
+|---|---|
+| Spec version | upact v0.1-draft |
+| Substrate | Supabase Auth (`@supabase/supabase-js` ^2.0.0) |
+| Self-declared capabilities | `email`, `recovery` when `user.email` is present; empty otherwise |
+| Capability coupling | Supabase's recovery is email-based; this adapter binds `recovery` to `email` (both present together or both absent). Not a generalisable pattern — see [`upact/docs/adapter-shapes.md`](https://github.com/prefig/upact/blob/main/docs/adapter-shapes.md). |
+| Threat model | Low-to-medium-stakes coordination. The Supabase substrate is centrally hosted; its threat model is acceptable in exchange for simplicity. Higher-stakes deployments should select an adapter against a substrate appropriate to their threat model. |
+| Channel-bound operations | Deferred to v0.2 per upact §5.3 (channel operations are explicitly outside the spec's scope). v0.1 declares the `email` and `recovery` capabilities; channel implementations follow when a real consumer drives the design. |
+| `issueRenewal` substrate behaviour | Both `identity` and `evidence` parameters are unused on this adapter. Supabase's `refreshSession()` acts on the cookie-bound client; the operation refreshes whichever identity owns the request cookies. Applications SHOULD only call `issueRenewal` in an explicit renewal context (sliding-window middleware, scheduled refresh) — not on every request. |
+| `display_hint` provenance | Sourced from `user_metadata.display_name`, which is application-writable in Supabase. The adapter does not validate or sanitise the value. Applications that care about impersonation prevention should override `display_hint` with their own logic (petnames, vetted display names, …). |
+| `Session` opacity | Sessions are wrapped at runtime in a class with a custom `toJSON()` that returns `'[upact:session]'`. Casts and `JSON.stringify` cannot decompose the session into substrate JWT claims. |
+| `AuthError` vocabulary | Substrate errors are normalised to a fixed set of codes: `invalid_credential`, `invalid_grant`, `rate_limited`, `network`, `auth_failed`. Raw substrate error text is not propagated to callers. |
+| SHOULD-clause deviations | None for v0.1. |
 
 ## Status
 
-Scaffolded 2026-04-30. Implementation pending. Open in this order:
+v0.1-draft. Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
 
-1. **`~/prefig/upact/SPEC.md`** — the contract this adapter conforms to (especially §4 UserIdentity shape, §6 operations, §7 privacy minima).
-2. **`~/prefig/rebuild/docs/plans/2026-04-30-001-feat-upact-supabase-adapter-plan.md`** — adapter implementation plan stub. Full plan to be written in a fresh `/ce:plan` session; resolve the linking-strategy question first (npm link vs github: vs file:).
-3. **`~/dyad.berlin/src/lib/services/identity.ts`** on branch `refactor/identity-service` — the existing logic to lift; the bulk of the v0.1 work is refactoring this code into the adapter shape.
-4. **`~/prefig/rebuild/docs/2026-04-30-identity-port-pattern.md`** — the synthesis explaining the architectural reframe (private context).
+## Licence
+
+Apache-2.0.
