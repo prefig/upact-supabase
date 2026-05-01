@@ -5,6 +5,7 @@ import type {
 	Session,
 	UserIdentity,
 } from '@prefig/upact';
+import { createSession } from '@prefig/upact';
 import { userToIdentity } from './identity-mapper.js';
 
 /**
@@ -16,27 +17,6 @@ import { userToIdentity } from './identity-mapper.js';
 export type SupabaseCredential =
 	| { kind: 'password'; email: string; password: string }
 	| { kind: 'otp'; email: string };
-
-/**
- * The upact `Session` is brand-typed at compile time. To preserve opacity
- * at runtime as well, the adapter wraps the substrate session inside this
- * class with no enumerable substrate-shaped properties and a `toJSON()`
- * that returns an opaque token. Per upact §7.4 — applications must not
- * decompose, decode, or extract claims from a Session.
- */
-class OpaqueSubstrateSession {
-	#held: unknown;
-	constructor(held: unknown) {
-		this.#held = held;
-	}
-	/** Adapter-internal accessor; not part of the port surface. */
-	_unwrap(): unknown {
-		return this.#held;
-	}
-	toJSON(): string {
-		return '[upact:session]';
-	}
-}
 
 /**
  * Adapter that conforms a Supabase Auth substrate to the upact
@@ -111,7 +91,7 @@ function isSupabaseCredential(value: unknown): value is SupabaseCredential {
 }
 
 function wrapSession(held: unknown): Session {
-	return new OpaqueSubstrateSession(held) as unknown as Session;
+	return createSession(held);
 }
 
 /**
