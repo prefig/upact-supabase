@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AuthError } from '@prefig/upact';
-import { SupabaseUpactAdapter } from '../src/adapter.js';
+import { createSupabaseAdapter } from '../src/adapter.js';
 import { makeUser } from './fixtures/user.js';
 
 interface MockAuth {
@@ -47,11 +47,11 @@ function isAuthError(value: unknown): value is AuthError {
 	);
 }
 
-describe('SupabaseUpactAdapter — currentIdentity', () => {
-	it('returns a UserIdentity matching the mapper output for an authenticated user', async () => {
+describe('createSupabaseAdapter — currentUpactor', () => {
+	it('returns a Upactor matching the mapper output for an authenticated user', async () => {
 		const { supabase } = makeSupabase();
-		const adapter = new SupabaseUpactAdapter(supabase);
-		const identity = await adapter.currentIdentity(fakeRequest);
+		const adapter = createSupabaseAdapter(supabase);
+		const identity = await adapter.currentUpactor(fakeRequest);
 		expect(identity).not.toBeNull();
 		expect(identity?.id).toBe('user-1');
 		expect(identity?.capabilities.has('email')).toBe(true);
@@ -61,15 +61,15 @@ describe('SupabaseUpactAdapter — currentIdentity', () => {
 		const { supabase } = makeSupabase({
 			getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
 		});
-		const adapter = new SupabaseUpactAdapter(supabase);
-		const identity = await adapter.currentIdentity(fakeRequest);
+		const adapter = createSupabaseAdapter(supabase);
+		const identity = await adapter.currentUpactor(fakeRequest);
 		expect(identity).toBeNull();
 	});
 
-	it('strips substrate fields from the returned UserIdentity (JSON.stringify check)', async () => {
+	it('strips substrate fields from the returned Upactor (JSON.stringify check)', async () => {
 		const { supabase } = makeSupabase();
-		const adapter = new SupabaseUpactAdapter(supabase);
-		const identity = await adapter.currentIdentity(fakeRequest);
+		const adapter = createSupabaseAdapter(supabase);
+		const identity = await adapter.currentUpactor(fakeRequest);
 		const json = JSON.stringify(identity);
 		expect(json).not.toContain('a@example.com');
 		expect(json).not.toContain('app_metadata');
@@ -88,10 +88,10 @@ describe('SupabaseUpactAdapter — currentIdentity', () => {
 			.mockResolvedValueOnce({ data: { user: userA } })
 			.mockResolvedValueOnce({ data: { user: userB } });
 		const { supabase } = makeSupabase({ getUser });
-		const adapter = new SupabaseUpactAdapter(supabase);
+		const adapter = createSupabaseAdapter(supabase);
 
-		const idA = await adapter.currentIdentity(fakeRequest);
-		const idB = await adapter.currentIdentity(fakeRequest);
+		const idA = await adapter.currentUpactor(fakeRequest);
+		const idB = await adapter.currentUpactor(fakeRequest);
 
 		for (const id of [idA, idB]) {
 			const json = JSON.stringify(id);
@@ -103,10 +103,10 @@ describe('SupabaseUpactAdapter — currentIdentity', () => {
 	});
 });
 
-describe('SupabaseUpactAdapter — authenticate', () => {
+describe('createSupabaseAdapter — authenticate', () => {
 	it('dispatches password credentials to signInWithPassword', async () => {
 		const { supabase, auth } = makeSupabase();
-		const adapter = new SupabaseUpactAdapter(supabase);
+		const adapter = createSupabaseAdapter(supabase);
 		const result = await adapter.authenticate({
 			kind: 'password',
 			email: 'a@example.com',
@@ -123,7 +123,7 @@ describe('SupabaseUpactAdapter — authenticate', () => {
 
 	it('dispatches otp credentials to signInWithOtp', async () => {
 		const { supabase, auth } = makeSupabase();
-		const adapter = new SupabaseUpactAdapter(supabase);
+		const adapter = createSupabaseAdapter(supabase);
 		const result = await adapter.authenticate({
 			kind: 'otp',
 			email: 'a@example.com',
@@ -145,7 +145,7 @@ describe('SupabaseUpactAdapter — authenticate', () => {
 		['password missing', { kind: 'password', email: 'a@example.com' }],
 	])('rejects malformed credential (%s) without calling the substrate', async (_, credential) => {
 		const { supabase, auth } = makeSupabase();
-		const adapter = new SupabaseUpactAdapter(supabase);
+		const adapter = createSupabaseAdapter(supabase);
 		const result = await adapter.authenticate(credential);
 		expect(isAuthError(result)).toBe(true);
 		expect((result as AuthError).code).toBe('credential_invalid');
@@ -166,7 +166,7 @@ describe('SupabaseUpactAdapter — authenticate', () => {
 				.fn()
 				.mockResolvedValue({ data: null, error: { message: substrateMessage } }),
 		});
-		const adapter = new SupabaseUpactAdapter(supabase);
+		const adapter = createSupabaseAdapter(supabase);
 		const result = await adapter.authenticate({
 			kind: 'password',
 			email: 'a@example.com',
@@ -190,7 +190,7 @@ describe('SupabaseUpactAdapter — authenticate', () => {
 				error: null,
 			}),
 		});
-		const adapter = new SupabaseUpactAdapter(supabase);
+		const adapter = createSupabaseAdapter(supabase);
 		const result = await adapter.authenticate({
 			kind: 'password',
 			email: 'a@example.com',
@@ -206,10 +206,10 @@ describe('SupabaseUpactAdapter — authenticate', () => {
 	});
 });
 
-describe('SupabaseUpactAdapter — invalidate', () => {
+describe('createSupabaseAdapter — invalidate', () => {
 	it('calls signOut and resolves to void', async () => {
 		const { supabase, auth } = makeSupabase();
-		const adapter = new SupabaseUpactAdapter(supabase);
+		const adapter = createSupabaseAdapter(supabase);
 		const session = (await adapter.authenticate({
 			kind: 'password',
 			email: 'a@example.com',
@@ -221,11 +221,11 @@ describe('SupabaseUpactAdapter — invalidate', () => {
 	});
 });
 
-describe('SupabaseUpactAdapter — issueRenewal', () => {
-	it('refreshes the session and returns a fresh UserIdentity on success', async () => {
+describe('createSupabaseAdapter — issueRenewal', () => {
+	it('refreshes the session and returns a fresh Upactor on success', async () => {
 		const { supabase, auth } = makeSupabase();
-		const adapter = new SupabaseUpactAdapter(supabase);
-		const stale = await adapter.currentIdentity(fakeRequest);
+		const adapter = createSupabaseAdapter(supabase);
+		const stale = await adapter.currentUpactor(fakeRequest);
 		const renewed = await adapter.issueRenewal(stale!, undefined);
 		expect(auth.refreshSession).toHaveBeenCalledOnce();
 		expect(renewed).not.toBeNull();
@@ -236,8 +236,8 @@ describe('SupabaseUpactAdapter — issueRenewal', () => {
 		const { supabase } = makeSupabase({
 			refreshSession: vi.fn().mockResolvedValue({ error: { message: 'expired' } }),
 		});
-		const adapter = new SupabaseUpactAdapter(supabase);
-		const stale = await adapter.currentIdentity(fakeRequest);
+		const adapter = createSupabaseAdapter(supabase);
+		const stale = await adapter.currentUpactor(fakeRequest);
 		const renewed = await adapter.issueRenewal(stale!, undefined);
 		expect(renewed).toBeNull();
 	});
@@ -247,7 +247,7 @@ describe('SupabaseUpactAdapter — issueRenewal', () => {
 		// cookie holder. The adapter still calls refreshSession and returns the
 		// cookie holder's identity (substrate-specific behaviour, documented).
 		const { supabase, auth } = makeSupabase();
-		const adapter = new SupabaseUpactAdapter(supabase);
+		const adapter = createSupabaseAdapter(supabase);
 		const arbitrary = {
 			id: 'someone-else',
 			lifecycle: { issued_at: '2020-01-01T00:00:00Z', renewable: 'reauth' as const },

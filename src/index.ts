@@ -4,16 +4,19 @@
  * License: Apache-2.0
  */
 
-export { SupabaseUpactAdapter, type SupabaseCredential } from './adapter.js';
-export { userToIdentity } from './identity-mapper.js';
+export {
+	createSupabaseAdapter,
+	type SupabaseCredential,
+} from './adapter.js';
+export { userToUpactor, userToIdentity } from './identity-mapper.js';
 export { capabilitiesFromUser } from './capabilities.js';
 
 export type {
-	UserIdentity,
-	IdentityLifecycle,
+	Upactor,
+	UserIdentity, // deprecated alias
 	Capability,
 	Session,
 	AuthError,
+	AuthErrorCode,
 	IdentityPort,
-	IdentityDecayAware,
 } from '@prefig/upact';
