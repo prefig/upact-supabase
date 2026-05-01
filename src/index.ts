@@ -1,19 +1,18 @@
-/**
- * @prefig/upact-supabase — Supabase Auth adapter for upact.
- *
- * License: Apache-2.0
- */
+// SPDX-License-Identifier: Apache-2.0
 
 export {
 	createSupabaseAdapter,
 	type SupabaseCredential,
 } from './adapter.js';
-export { userToUpactor, userToIdentity } from './identity-mapper.js';
+export { userToUpactor } from './identity-mapper.js';
+/** @deprecated Use `userToUpactor` instead. Removed in v0.2. */
+export { userToIdentity } from './identity-mapper.js';
 export { capabilitiesFromUser } from './capabilities.js';
 
 export type {
 	Upactor,
-	UserIdentity, // deprecated alias
+	/** @deprecated Use `Upactor` instead. Removed in v0.2. */
+	UserIdentity,
 	Capability,
 	Session,
 	AuthError,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { User } from '@supabase/supabase-js';
 import type { Upactor } from '@prefig/upact';
 import { capabilitiesFromUser } from './capabilities.js';
@@ -15,9 +16,9 @@ import { capabilitiesFromUser } from './capabilities.js';
  * other substrate identifier (per upact §7.1, §4.2). When absent or
  * empty, the field is omitted entirely from the returned object.
  *
- * Lifecycle was deferred from upact v0.1 by audit (no concrete consumer);
- * Phase C brings it back when JWT exp-driven `expires_at` becomes a real
- * consumer need.
+ * Lifecycle is not populated by this adapter (v0.1.x). The OIDC adapter
+ * populates it from JWT exp. A concrete consumer driving Supabase
+ * session-expiry UI would land it here.
  *
  * Exported as a sync convenience so that consumers whose substrate
  * populates a User object synchronously (e.g. SvelteKit hooks placing
