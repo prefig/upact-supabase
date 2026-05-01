@@ -15,4 +15,5 @@ export type {
 	Session,
 	AuthError,
 	IdentityPort,
+	IdentityDecayAware,
 } from '@prefig/upact';

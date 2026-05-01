@@ -122,15 +122,17 @@ function wrapSession(held: unknown): Session {
  * for the full set). Codes describe failure category at the port layer,
  * not substrate semantics — substrate detail goes in `message`.
  *
- * Codes used here:
- *   - rate_limited:        substrate rate-limited the operation
- *   - credential_rejected: credential reached the substrate but was rejected
- *   - substrate_unavailable: substrate is unreachable or returned a transport error
- *   - auth_failed:         catch-all for unexpected substrate failure
+ * Codes this adapter emits:
+ *   - credential_invalid:    elsewhere — malformed credential rejected pre-substrate
+ *   - credential_rejected:   substrate rejected the credential (wrong password, no such user)
+ *   - rate_limited:          substrate rate-limited the operation
+ *   - substrate_unavailable: substrate is unreachable / network error
+ *   - auth_failed:           catch-all for unexpected substrate failure
  *
- * Other unified codes (`credential_invalid` for malformed input,
- * `identity_unavailable` for missing identity records) are emitted
- * elsewhere in this adapter where appropriate.
+ * The unified vocabulary also includes `identity_unavailable`, which
+ * Supabase does not distinguish from `credential_rejected` (Supabase
+ * conflates "no such user" with "wrong password" as
+ * credential-stuffing-resistance). Other adapters may emit it.
  */
 function normaliseAuthError(err: { message?: string }): AuthError {
 	const raw = typeof err.message === 'string' ? err.message.toLowerCase() : '';

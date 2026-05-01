@@ -88,4 +88,21 @@ describe('userToIdentity', () => {
 		expect(identity['confirmed_at']).toBeUndefined();
 		expect(identity['last_sign_in_at']).toBeUndefined();
 	});
+
+	it('id passes through user.id (Supabase substrate provides a stable opaque UUID)', () => {
+		const identity = userToIdentity(makeUser({ id: 'fixed-supabase-uuid' }));
+		expect(identity.id).toBe('fixed-supabase-uuid');
+	});
+
+	it('id is deterministic — same user.id yields same identity.id', () => {
+		const a = userToIdentity(makeUser({ id: 'fixed-1' }));
+		const b = userToIdentity(makeUser({ id: 'fixed-1' }));
+		expect(a.id).toBe(b.id);
+	});
+
+	it('id is distinct for distinct user.id values', () => {
+		const a = userToIdentity(makeUser({ id: 'user-a' }));
+		const b = userToIdentity(makeUser({ id: 'user-b' }));
+		expect(a.id).not.toBe(b.id);
+	});
 });
