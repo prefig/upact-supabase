@@ -5,7 +5,7 @@ import type {
 	Session,
 	Upactor,
 } from '@prefig/upact';
-import { createSession } from '@prefig/upact';
+import { createSession, SubstrateUnavailableError } from '@prefig/upact';
 import { userToUpactor } from './identity-mapper.js';
 
 /**
@@ -13,10 +13,14 @@ import { userToUpactor } from './identity-mapper.js';
  * `kind`. Anything that is not one of these shapes is rejected by
  * `authenticate` with `AuthError({ code: 'credential_invalid' })`
  * before any substrate call is made.
+ *
+ * OTP / magic-link flows are intentionally excluded. Those are redirect-based
+ * multi-step flows (Decision 10 / SPEC.md §10): the upact port is one-shot,
+ * returning `Session | AuthError`. The redirect dance happens at the
+ * substrate IDP; upact sees only the resulting token. Route a dedicated
+ * `/auth/callback` handler outside the port for OTP exchange.
  */
-export type SupabaseCredential =
-	| { kind: 'password'; email: string; password: string }
-	| { kind: 'otp'; email: string };
+export type SupabaseCredential = { kind: 'password'; email: string; password: string };
 
 /**
  * Adapter that conforms a Supabase Auth substrate to the upact
@@ -49,24 +53,23 @@ export function createSupabaseAdapter(supabase: SupabaseClient): IdentityPort {
 					message: 'unrecognised credential shape',
 				};
 			}
-			if (credential.kind === 'password') {
-				const { data, error } = await supabase.auth.signInWithPassword({
-					email: credential.email,
-					password: credential.password,
-				});
-				if (error) return normaliseAuthError(error);
-				return createSession(data.session);
-			}
-			const { data, error } = await supabase.auth.signInWithOtp({
+			const { data, error } = await supabase.auth.signInWithPassword({
 				email: credential.email,
+				password: credential.password,
 			});
 			if (error) return normaliseAuthError(error);
 			return createSession(data.session);
 		},
 
 		async currentUpactor(_request: Request): Promise<Upactor | null> {
-			const { data } = await supabase.auth.getUser();
-			return data.user ? userToUpactor(data.user) : null;
+			try {
+				const { data } = await supabase.auth.getUser();
+				return data.user ? userToUpactor(data.user) : null;
+			} catch (err) {
+				throw new SubstrateUnavailableError(
+					err instanceof Error ? err.message : 'Supabase getUser failed',
+				);
+			}
 		},
 
 		async invalidate(_session: Session): Promise<void> {
@@ -85,10 +88,16 @@ export function createSupabaseAdapter(supabase: SupabaseClient): IdentityPort {
 			_identity: Upactor,
 			_evidence: unknown,
 		): Promise<Upactor | null> {
-			const { error } = await supabase.auth.refreshSession();
-			if (error) return null;
-			const { data } = await supabase.auth.getUser();
-			return data.user ? userToUpactor(data.user) : null;
+			try {
+				const { error } = await supabase.auth.refreshSession();
+				if (error) return null;
+				const { data } = await supabase.auth.getUser();
+				return data.user ? userToUpactor(data.user) : null;
+			} catch (err) {
+				throw new SubstrateUnavailableError(
+					err instanceof Error ? err.message : 'Supabase renewal failed',
+				);
+			}
 		},
 	};
 }
@@ -96,11 +105,9 @@ export function createSupabaseAdapter(supabase: SupabaseClient): IdentityPort {
 function isSupabaseCredential(value: unknown): value is SupabaseCredential {
 	if (typeof value !== 'object' || value === null) return false;
 	const candidate = value as { kind?: unknown; email?: unknown; password?: unknown };
+	if (candidate.kind !== 'password') return false;
 	if (typeof candidate.email !== 'string' || candidate.email.length === 0) return false;
-	if (candidate.kind === 'password') {
-		return typeof candidate.password === 'string' && candidate.password.length > 0;
-	}
-	return candidate.kind === 'otp';
+	return typeof candidate.password === 'string' && candidate.password.length > 0;
 }
 
 /**

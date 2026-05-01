@@ -20,3 +20,4 @@ export type {
 	AuthErrorCode,
 	IdentityPort,
 } from '@prefig/upact';
+export { SubstrateUnavailableError } from '@prefig/upact';

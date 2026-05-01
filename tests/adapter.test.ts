@@ -7,7 +7,6 @@ import { makeUser } from './fixtures/user.js';
 interface MockAuth {
 	getUser: ReturnType<typeof vi.fn>;
 	signInWithPassword: ReturnType<typeof vi.fn>;
-	signInWithOtp: ReturnType<typeof vi.fn>;
 	signOut: ReturnType<typeof vi.fn>;
 	refreshSession: ReturnType<typeof vi.fn>;
 }
@@ -24,9 +23,6 @@ function makeSupabase(authOverrides: Partial<MockAuth> = {}): {
 				data: { session: { access_token: 'jwt-token', user: makeUser() } },
 				error: null,
 			}),
-		signInWithOtp: vi
-			.fn()
-			.mockResolvedValue({ data: { session: null, user: null }, error: null }),
 		signOut: vi.fn().mockResolvedValue({ error: null }),
 		refreshSession: vi.fn().mockResolvedValue({ data: { session: {} }, error: null }),
 		...authOverrides,
@@ -117,20 +113,6 @@ describe('createSupabaseAdapter — authenticate', () => {
 			email: 'a@example.com',
 			password: 'hunter2',
 		});
-		expect(auth.signInWithOtp).not.toHaveBeenCalled();
-		expect(isAuthError(result)).toBe(false);
-	});
-
-	it('dispatches otp credentials to signInWithOtp', async () => {
-		const { supabase, auth } = makeSupabase();
-		const adapter = createSupabaseAdapter(supabase);
-		const result = await adapter.authenticate({
-			kind: 'otp',
-			email: 'a@example.com',
-		});
-		expect(auth.signInWithOtp).toHaveBeenCalledOnce();
-		expect(auth.signInWithOtp).toHaveBeenCalledWith({ email: 'a@example.com' });
-		expect(auth.signInWithPassword).not.toHaveBeenCalled();
 		expect(isAuthError(result)).toBe(false);
 	});
 
@@ -141,6 +123,7 @@ describe('createSupabaseAdapter — authenticate', () => {
 		['empty object', {}],
 		['object missing kind', { email: 'a@example.com', password: 'hunter2' }],
 		['unknown kind', { kind: 'wat', email: 'a@example.com' }],
+		['otp kind (redirect flow, not supported at port)', { kind: 'otp', email: 'a@example.com' }],
 		['empty email', { kind: 'password', email: '', password: 'hunter2' }],
 		['password missing', { kind: 'password', email: 'a@example.com' }],
 	])('rejects malformed credential (%s) without calling the substrate', async (_, credential) => {
@@ -150,7 +133,6 @@ describe('createSupabaseAdapter — authenticate', () => {
 		expect(isAuthError(result)).toBe(true);
 		expect((result as AuthError).code).toBe('credential_invalid');
 		expect(auth.signInWithPassword).not.toHaveBeenCalled();
-		expect(auth.signInWithOtp).not.toHaveBeenCalled();
 	});
 
 	it.each([

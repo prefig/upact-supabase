@@ -37,11 +37,16 @@ export function userToUpactor(user: User): Upactor {
  * @deprecated Renamed to `userToUpactor` for v0.1. This alias remains for
  * v0.1.x compatibility and will be removed in v0.2.
  */
-export const userToIdentity = userToUpactor;
+export const userToIdentity: (user: User) => Upactor = userToUpactor;
+
+// SPEC §4.2: the display_hint MUST NOT be derived from or resemble an
+// email address. Guard against substrates that store email in display_name.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function readDisplayHint(user: User): string | undefined {
 	const raw = user.user_metadata?.display_name;
 	if (typeof raw !== 'string') return undefined;
 	const trimmed = raw.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	if (trimmed.length === 0 || EMAIL_PATTERN.test(trimmed)) return undefined;
+	return trimmed;
 }
