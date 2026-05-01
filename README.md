@@ -43,7 +43,7 @@ Per upact §10:
 | `issueRenewal` substrate behaviour | Both `identity` and `evidence` parameters are unused on this adapter. Supabase's `refreshSession()` acts on the cookie-bound client; the operation refreshes whichever identity owns the request cookies. Applications SHOULD only call `issueRenewal` in an explicit renewal context (sliding-window middleware, scheduled refresh) — not on every request. |
 | `display_hint` provenance | Sourced from `user_metadata.display_name`, which is application-writable in Supabase. The adapter does not validate or sanitise the value. Applications that care about impersonation prevention should override `display_hint` with their own logic (petnames, vetted display names, …). |
 | `Session` opacity | Sessions are wrapped at runtime in a class with a custom `toJSON()` that returns `'[upact:session]'`. Casts and `JSON.stringify` cannot decompose the session into substrate JWT claims. |
-| `AuthError` vocabulary | Substrate errors are normalised to a fixed set of codes: `invalid_credential`, `invalid_grant`, `rate_limited`, `network`, `auth_failed`. Raw substrate error text is not propagated to callers. |
+| `AuthError` vocabulary | Port-level codes, unified with `@prefig/upact-simplex`: `credential_invalid`, `credential_rejected`, `substrate_unavailable`, `identity_unavailable`, `rate_limited`, `auth_failed`. Codes describe failure category at the port layer, not Supabase semantics. Substrate detail goes in `message`; raw substrate error text is not propagated verbatim to callers. |
 | SHOULD-clause deviations | None for v0.1. |
 
 ## Status

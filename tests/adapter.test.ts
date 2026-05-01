@@ -148,17 +148,17 @@ describe('SupabaseUpactAdapter — authenticate', () => {
 		const adapter = new SupabaseUpactAdapter(supabase);
 		const result = await adapter.authenticate(credential);
 		expect(isAuthError(result)).toBe(true);
-		expect((result as AuthError).code).toBe('invalid_credential');
+		expect((result as AuthError).code).toBe('credential_invalid');
 		expect(auth.signInWithPassword).not.toHaveBeenCalled();
 		expect(auth.signInWithOtp).not.toHaveBeenCalled();
 	});
 
 	it.each([
-		['Invalid login credentials', 'invalid_grant'],
-		['User not found', 'invalid_grant'],
+		['Invalid login credentials', 'credential_rejected'],
+		['User not found', 'credential_rejected'],
 		['Email rate limit exceeded', 'rate_limited'],
 		['Too many requests', 'rate_limited'],
-		['fetch failed: network', 'network'],
+		['fetch failed: network', 'substrate_unavailable'],
 		['Database is on fire', 'auth_failed'],
 	])('normalises substrate error "%s" to code "%s"', async (substrateMessage, expectedCode) => {
 		const { supabase } = makeSupabase({

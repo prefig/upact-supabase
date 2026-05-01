@@ -10,7 +10,7 @@ import { userToIdentity } from './identity-mapper.js';
 /**
  * Credential shape this adapter accepts. Tagged union — discriminated by
  * `kind`. Anything that is not one of these shapes is rejected by
- * `authenticate` with `AuthError({ code: 'invalid_credential' })`
+ * `authenticate` with `AuthError({ code: 'credential_invalid' })`
  * before any substrate call is made.
  */
 export type SupabaseCredential =
@@ -55,7 +55,7 @@ export class SupabaseUpactAdapter implements IdentityPort {
 		credential: unknown,
 	): Promise<Session | AuthError> {
 		if (!isSupabaseCredential(credential)) {
-			return { code: 'invalid_credential', message: 'unrecognised credential shape' };
+			return { code: 'credential_invalid', message: 'unrecognised credential shape' };
 		}
 		if (credential.kind === 'password') {
 			const { data, error } = await this.supabase.auth.signInWithPassword({
@@ -114,16 +114,34 @@ function wrapSession(held: unknown): Session {
 	return new OpaqueSubstrateSession(held) as unknown as Session;
 }
 
+/**
+ * Map Supabase auth errors to upact's port-level AuthError vocabulary.
+ *
+ * The vocabulary is unified across @prefig/upact-supabase and
+ * @prefig/upact-simplex (see the SimpleX adapter and adapter-shapes.md
+ * for the full set). Codes describe failure category at the port layer,
+ * not substrate semantics — substrate detail goes in `message`.
+ *
+ * Codes used here:
+ *   - rate_limited:        substrate rate-limited the operation
+ *   - credential_rejected: credential reached the substrate but was rejected
+ *   - substrate_unavailable: substrate is unreachable or returned a transport error
+ *   - auth_failed:         catch-all for unexpected substrate failure
+ *
+ * Other unified codes (`credential_invalid` for malformed input,
+ * `identity_unavailable` for missing identity records) are emitted
+ * elsewhere in this adapter where appropriate.
+ */
 function normaliseAuthError(err: { message?: string }): AuthError {
 	const raw = typeof err.message === 'string' ? err.message.toLowerCase() : '';
 	if (raw.includes('rate') || raw.includes('too many')) {
 		return { code: 'rate_limited', message: 'authentication rate-limited' };
 	}
 	if (raw.includes('invalid') || raw.includes('credentials') || raw.includes('not found')) {
-		return { code: 'invalid_grant', message: 'invalid credentials' };
+		return { code: 'credential_rejected', message: 'substrate rejected the credential' };
 	}
 	if (raw.includes('network') || raw.includes('fetch')) {
-		return { code: 'network', message: 'network error during authentication' };
+		return { code: 'substrate_unavailable', message: 'substrate unavailable during authentication' };
 	}
 	return { code: 'auth_failed', message: 'authentication failed' };
 }
