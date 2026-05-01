@@ -54,12 +54,18 @@ export function createSupabaseAdapter(supabase: SupabaseClient): IdentityPort {
 					message: 'unrecognised credential shape',
 				};
 			}
-			const { data, error } = await supabase.auth.signInWithPassword({
-				email: credential.email,
-				password: credential.password,
-			});
-			if (error) return normaliseAuthError(error);
-			return createSession(data.session);
+			try {
+				const { data, error } = await supabase.auth.signInWithPassword({
+					email: credential.email,
+					password: credential.password,
+				});
+				if (error) return normaliseAuthError(error);
+				return createSession(data.session);
+			} catch (err) {
+				throw new SubstrateUnavailableError(
+					err instanceof Error ? err.message : 'Supabase signIn failed',
+				);
+			}
 		},
 
 		async currentUpactor(_request: Request): Promise<Upactor | null> {
@@ -130,16 +136,20 @@ function isSupabaseCredential(value: unknown): value is SupabaseCredential {
  * conflates "no such user" with "wrong password" as
  * credential-stuffing-resistance). Other adapters may emit it.
  */
-function normaliseAuthError(err: { message?: string }): AuthError {
+function normaliseAuthError(err: { message?: string; status?: number }): AuthError {
+	// HTTP status codes are more reliable than message strings — classify by status first.
+	const status = err.status ?? 0;
+	if (status === 429) return { code: 'rate_limited', message: 'authentication rate-limited' };
+	if (status >= 400 && status < 500) return { code: 'credential_rejected', message: 'substrate rejected the credential' };
+	if (status >= 500) return { code: 'substrate_unavailable', message: 'substrate unavailable during authentication' };
+
+	// Fallback: message string matching for errors without an HTTP status.
 	const raw = typeof err.message === 'string' ? err.message.toLowerCase() : '';
 	if (raw.includes('rate') || raw.includes('too many')) {
 		return { code: 'rate_limited', message: 'authentication rate-limited' };
 	}
 	if (raw.includes('invalid') || raw.includes('credentials') || raw.includes('not found')) {
 		return { code: 'credential_rejected', message: 'substrate rejected the credential' };
-	}
-	if (raw.includes('network') || raw.includes('fetch')) {
-		return { code: 'substrate_unavailable', message: 'substrate unavailable during authentication' };
 	}
 	return { code: 'auth_failed', message: 'authentication failed' };
 }

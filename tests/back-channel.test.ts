@@ -137,8 +137,12 @@ function assertNoLeak(adapter: object, label: string): void {
 	expect(castAdapter['supabase'], `${label}: (adapter as any).supabase`).toBeUndefined();
 	expect(castAdapter['client'], `${label}: (adapter as any).client`).toBeUndefined();
 
-	// 14. Frozen-state inspection — no substrate via Object.isFrozen path
-	// (factories produce non-frozen literals; this is documentation-only)
+	// 14. Frozen-state inspection — freeze the adapter and verify substrate still doesn't leak
+	Object.freeze(adapter);
+	const frozenJson = JSON.stringify(adapter);
+	for (const s of sentinels) {
+		expect(frozenJson, `${label}: leak via Object.freeze + JSON.stringify (${s})`).not.toContain(s);
+	}
 
 	// 15. JSON.stringify nested in a wrapper
 	const wrapped = { kind: 'adapter-holder', adapter };

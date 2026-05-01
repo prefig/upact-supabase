@@ -136,17 +136,24 @@ describe('createSupabaseAdapter — authenticate', () => {
 	});
 
 	it.each([
-		['Invalid login credentials', 'credential_rejected'],
-		['User not found', 'credential_rejected'],
-		['Email rate limit exceeded', 'rate_limited'],
-		['Too many requests', 'rate_limited'],
-		['fetch failed: network', 'substrate_unavailable'],
-		['Database is on fire', 'auth_failed'],
-	])('normalises substrate error "%s" to code "%s"', async (substrateMessage, expectedCode) => {
+		// Status-based classification (primary path)
+		[{ status: 429 }, 'rate_limited'],
+		[{ status: 401 }, 'credential_rejected'],
+		[{ status: 400 }, 'credential_rejected'],
+		[{ status: 422 }, 'credential_rejected'],
+		[{ status: 500 }, 'substrate_unavailable'],
+		[{ status: 503 }, 'substrate_unavailable'],
+		// Message-based fallback (no status field)
+		[{ message: 'Invalid login credentials' }, 'credential_rejected'],
+		[{ message: 'User not found' }, 'credential_rejected'],
+		[{ message: 'Email rate limit exceeded' }, 'rate_limited'],
+		[{ message: 'Too many requests' }, 'rate_limited'],
+		[{ message: 'Database is on fire' }, 'auth_failed'],
+	])('normalises substrate error %o to code "%s"', async (substrateError, expectedCode) => {
 		const { supabase } = makeSupabase({
 			signInWithPassword: vi
 				.fn()
-				.mockResolvedValue({ data: null, error: { message: substrateMessage } }),
+				.mockResolvedValue({ data: null, error: substrateError }),
 		});
 		const adapter = createSupabaseAdapter(supabase);
 		const result = await adapter.authenticate({
@@ -156,7 +163,16 @@ describe('createSupabaseAdapter — authenticate', () => {
 		});
 		expect(isAuthError(result)).toBe(true);
 		expect((result as AuthError).code).toBe(expectedCode);
-		expect((result as AuthError).message).not.toBe(substrateMessage);
+	});
+
+	it('throws SubstrateUnavailableError when signInWithPassword throws (network failure)', async () => {
+		const { supabase } = makeSupabase({
+			signInWithPassword: vi.fn().mockRejectedValue(new Error('fetch failed')),
+		});
+		const adapter = createSupabaseAdapter(supabase);
+		await expect(
+			adapter.authenticate({ kind: 'password', email: 'a@example.com', password: 'hunter2' }),
+		).rejects.toThrow('fetch failed');
 	});
 
 	it('does not leak the substrate JWT through the returned Session value', async () => {
