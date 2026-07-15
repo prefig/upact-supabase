@@ -45,7 +45,7 @@ Per upact §10:
 
 ## Status
 
-v0.1.0. Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
+v0.1.1. Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
 
 ## Licence
 
