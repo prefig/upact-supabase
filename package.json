@@ -1,7 +1,7 @@
 {
 	"name": "@prefig/upact-supabase",
 	"version": "0.1.0",
-	"description": "Supabase Auth adapter for upact — wraps Supabase's identity substrate behind the upact identity port, with privacy minima enforced at the adapter boundary.",
+	"description": "Supabase Auth adapter for upact.",
 	"license": "Apache-2.0",
 	"type": "module",
 	"main": "./dist/index.js",
