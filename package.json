@@ -1,6 +1,6 @@
 {
 	"name": "@prefig/upact-supabase",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"description": "Supabase Auth adapter for upact.",
 	"license": "Apache-2.0",
 	"type": "module",
@@ -46,11 +46,11 @@
 		"prepublishOnly": "npm run build && npm test"
 	},
 	"peerDependencies": {
-		"@prefig/upact": "^0.1.0",
+		"@prefig/upact": "^0.2.0",
 		"@supabase/supabase-js": "^2.0.0"
 	},
 	"devDependencies": {
-		"@prefig/upact": "^0.1.2",
+		"@prefig/upact": "^0.2.0",
 		"@supabase/supabase-js": "^2.0.0",
 		"@types/node": "^22.0.0",
 		"typescript": "^5.0.0",

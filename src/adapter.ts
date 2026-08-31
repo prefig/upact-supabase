@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Session as SupabaseSession, SupabaseClient } from '@supabase/supabase-js';
 import type {
 	AuthError,
 	IdentityPort,
 	Session,
 	Upactor,
 } from '@prefig/upact';
-import { createSession, SubstrateUnavailableError } from '@prefig/upact';
+import { SubstrateUnavailableError } from '@prefig/upact';
+import { createSessionBox } from '@prefig/upact/internal';
 import { userToUpactor } from './identity-mapper.js';
 
 /**
@@ -46,6 +47,7 @@ export type SupabaseCredential = { kind: 'password'; email: string; password: st
  * cookies are already bound to the `SupabaseClient`.
  */
 export function createSupabaseAdapter(supabase: SupabaseClient): IdentityPort {
+	const box = createSessionBox<SupabaseSession | null>();
 	return {
 		async authenticate(credential: unknown): Promise<Session | AuthError> {
 			if (!isSupabaseCredential(credential)) {
@@ -60,7 +62,7 @@ export function createSupabaseAdapter(supabase: SupabaseClient): IdentityPort {
 					password: credential.password,
 				});
 				if (error) return normaliseAuthError(error);
-				return createSession(data.session);
+				return box.seal(data.session);
 			} catch (err) {
 				throw new SubstrateUnavailableError(
 					err instanceof Error ? err.message : 'Supabase signIn failed',

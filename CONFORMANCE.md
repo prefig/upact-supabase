@@ -1,7 +1,7 @@
 # Conformance: @prefig/upact-supabase
 
-**Spec version:** upact v0.1
-**Package version:** 0.1.0
+**Spec version:** upact v0.2
+**Package version:** 0.2.0
 **Date:** 2026-05-01
 
 ## Substrate
@@ -35,7 +35,7 @@ Note: Supabase conflates "user not found" with "wrong password" as credential-st
 
 ## Session opacity
 
-This adapter uses `createSession` from `@prefig/upact` for Session construction.
+This adapter uses `createSessionBox` from `@prefig/upact/internal` for Session construction — one box per adapter instance, created in the factory closure. This adapter may seal `null` (Supabase's `data.session` is nullable); any future unseal site must check `=== undefined` (foreign session), not truthiness.
 
 ## Adapter back-channel closure
 

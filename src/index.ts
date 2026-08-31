@@ -11,8 +11,6 @@ export { capabilitiesFromUser } from './capabilities.js';
 
 export type {
 	Upactor,
-	/** @deprecated Use `Upactor` instead. Removed in v0.2. */
-	UserIdentity,
 	Capability,
 	Session,
 	AuthError,
