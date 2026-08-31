@@ -31,7 +31,7 @@ Per upact §10:
 
 | Item | Value |
 |---|---|
-| Spec version | upact v0.1 |
+| Spec version | upact v0.2 |
 | Substrate | Supabase Auth (`@supabase/supabase-js` ^2.0.0) |
 | Self-declared capabilities | `email`, `recovery` when `user.email` is present; empty otherwise |
 | Capability coupling | Supabase's recovery is email-based; this adapter binds `recovery` to `email` (both present together or both absent). Not a generalisable pattern; see [`upact/docs/adapter-shapes.md`](https://github.com/prefig/upact/blob/main/docs/adapter-shapes.md). |
@@ -39,13 +39,13 @@ Per upact §10:
 | Channel-bound operations | Deferred to v0.2 per upact §5.3 (channel operations are explicitly outside the spec's scope). v0.1 declares the `email` and `recovery` capabilities; channel implementations follow when a real consumer drives the design. |
 | `issueRenewal` substrate behaviour | Both `identity` and `evidence` parameters are unused on this adapter. Supabase's `refreshSession()` acts on the cookie-bound client; the operation refreshes whichever identity owns the request cookies. Applications SHOULD only call `issueRenewal` in an explicit renewal context (sliding-window middleware, scheduled refresh), not on every request. |
 | `display_hint` provenance | Sourced from `user_metadata.display_name` (application-writable in Supabase). The adapter trims whitespace and rejects email-shaped strings (per upact §4.2 MUST NOT: display hints must not be email addresses). It does not perform deeper sanitisation: applications that care about impersonation prevention should override `display_hint` with their own logic (petnames, vetted display names, …). |
-| `Session` opacity | Sessions created via `createSession` from `@prefig/upact`. Opacity is centralised in the upact runtime kernel and verified by sixteen-vector reflection test at `tests/back-channel.test.ts`. |
+| `Session` opacity | Sessions sealed by a per-instance session box (`createSessionBox` from `@prefig/upact/internal`, held in the factory closure); unsealable only by the instance that sealed them. Adapter back-channel closure verified by the sixteen-case reflection test at `tests/back-channel.test.ts`. |
 | `AuthError` vocabulary | Port-level codes, unified with `@prefig/upact-simplex`: `credential_invalid`, `credential_rejected`, `substrate_unavailable`, `identity_unavailable`, `rate_limited`, `auth_failed`. Codes describe failure category at the port layer, not Supabase semantics. Substrate detail goes in `message`; raw substrate error text is not propagated verbatim to callers. |
 | SHOULD-clause deviations | None for v0.1. |
 
 ## Status
 
-v0.1.1. Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
+v0.2.0. Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
 
 ## Licence
 
