@@ -1,8 +1,8 @@
 # Conformance: @prefig/upact-supabase
 
-**Spec version:** upact v0.2
-**Package version:** 0.2.0
-**Date:** 2026-05-01
+**Spec version:** upact v0.3
+**Package version:** 0.3.0
+**Date:** 2026-09-01
 
 ## Substrate
 
@@ -35,7 +35,7 @@ Note: Supabase conflates "user not found" with "wrong password" as credential-st
 
 ## Session opacity
 
-This adapter uses `createSessionBox` from `@prefig/upact/internal` for Session construction — one box per adapter instance, created in the factory closure. This adapter may seal `null` (Supabase's `data.session` is nullable); any future unseal site must check `=== undefined` (foreign session), not truthiness.
+This adapter uses `createOpaqueSession` from `@prefig/upact/internal` for Session construction — the core constructor builds the hardened opaque marker and stores nothing. The adapter keeps no session-to-state association: substrate state lives in the request cookies and the cookie-bound `SupabaseClient`, so no `WeakMap<Session, T>` is held. A foreign or fabricated session carries no state either way and is treated as unknown, never a throw.
 
 ## Adapter back-channel closure
 

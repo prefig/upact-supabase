@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { Session as SupabaseSession, SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
 	AuthError,
 	IdentityPort,
@@ -7,7 +7,7 @@ import type {
 	Upactor,
 } from '@prefig/upact';
 import { SubstrateUnavailableError } from '@prefig/upact';
-import { createSessionBox } from '@prefig/upact/internal';
+import { createOpaqueSession } from '@prefig/upact/internal';
 import { userToUpactor } from './identity-mapper.js';
 
 /**
@@ -47,7 +47,6 @@ export type SupabaseCredential = { kind: 'password'; email: string; password: st
  * cookies are already bound to the `SupabaseClient`.
  */
 export function createSupabaseAdapter(supabase: SupabaseClient): IdentityPort {
-	const box = createSessionBox<SupabaseSession | null>();
 	return {
 		async authenticate(credential: unknown): Promise<Session | AuthError> {
 			if (!isSupabaseCredential(credential)) {
@@ -57,12 +56,15 @@ export function createSupabaseAdapter(supabase: SupabaseClient): IdentityPort {
 				};
 			}
 			try {
-				const { data, error } = await supabase.auth.signInWithPassword({
+				const { error } = await supabase.auth.signInWithPassword({
 					email: credential.email,
 					password: credential.password,
 				});
 				if (error) return normaliseAuthError(error);
-				return box.seal(data.session);
+				// This adapter keeps no session-to-state association: substrate
+				// state lives in the cookie-bound SupabaseClient, so the marker
+				// alone is the Session (no WeakMap needed).
+				return createOpaqueSession();
 			} catch (err) {
 				throw new SubstrateUnavailableError(
 					err instanceof Error ? err.message : 'Supabase signIn failed',
